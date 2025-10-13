@@ -1,0 +1,57 @@
+# Environment variables
+.env
+
+# Deno cache
+.deno/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Dependencies
+node_modules/
+
+# Build output
+build/*.txt
+web-bundles/
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Development tools and configs
+.prettierignore
+.prettierrc
+
+# IDE and editor configs
+.windsurf/
+.trae/
+.bmad*/
+.cursor/
+.vscode/
+.idea/
+
+# AI assistant files
+CLAUDE.md
+.ai/*
+.claude
+.gemini
+.iflow
+
+# Project-specific
+.bmad-core
+.bmad-creator-tools
+test-project-install/*
+sample-project/*
+flattened-codebase.xml
+*.stats.md
+
+development
+runtime
+coverage/
+.coverage/
+example*.env
+
+# Docker
+docker-compose.override.yml

@@ -1,0 +1,91 @@
+services:
+  # Modbus Hardware Simulator
+  # Source: https://github.com/aott33/pump-station-modbus-sim
+  # Image: https://github.com/aott33/pump-station-modbus-sim/pkgs/container/pump-station-modbus-sim
+  modbus-sim:
+    image: ghcr.io/aott33/pump-station-modbus-sim:latest
+    container_name: modbus-sim
+    ports:
+      - ${SIMULATOR_UI_PORT:-8080}:8080
+      - 5020:5020  # Modbus I/O server
+    restart: always
+    networks:
+      - sim-network
+
+  # HiveMQ MQTT broker for Sparkplug B communication
+  hivemq:
+    image: hivemq/hivemq4:latest
+    container_name: hivemq
+    ports:
+      - "1883:1883"  # MQTT protocol port
+      - "8000:8000"  # WebSocket listener
+      - "8081:8080"  # HiveMQ Control Center web UI
+    environment:
+      - HIVEMQ_ALLOW_ANONYMOUS=true
+    networks:
+      - sim-network
+    restart: always
+
+  tentacle-plc:
+    image: ${DENO_IMAGE:-joyja/deno-dev:latest}
+    container_name: tentacle-plc
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - ${GRAPHQL_PORT:-4123}:4123  # GraphQL monitoring server
+    volumes:
+      - ./src:/app/src
+      - ./deno.json:/app/deno.json
+      - ./deno.lock:/app/deno.lock
+    working_dir: /app
+    command: sh -c "deno cache --reload --node-modules-dir src/main.ts && deno run -A --watch src/main.ts"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4123/graphql?query={__typename}"]
+      interval: 30s
+      timeout: 3s
+      start_period: 40s
+      retries: 3
+    restart: always
+    environment:
+      # Modbus Configuration
+      - MODBUS_IO_HOST=${MODBUS_IO_HOST:-modbus-sim}
+      - MODBUS_IO_PORT=${MODBUS_IO_PORT:-5020}
+
+      # MQTT Configuration
+      - MQTT_HOST=${MQTT_HOST:-hivemq}
+      - MQTT_PORT=${MQTT_PORT:-1883}
+
+      # Modbus Register Mapping
+      - LOCAL_STOP_REGISTER=${LOCAL_STOP_REGISTER:-2500}
+      - LOCAL_START_REGISTER=${LOCAL_START_REGISTER:-2501}
+      - PUMP_STATE_COIL=${PUMP_STATE_COIL:-2502}
+
+      # Task Scan Rates
+      - TASK_SENSOR_MONITOR_RATE_MS=${TASK_SENSOR_MONITOR_RATE_MS:-100}
+      - TASK_PUMP_CONTROL_RATE_MS=${TASK_PUMP_CONTROL_RATE_MS:-500}
+
+    depends_on:
+      - modbus-sim
+      - hivemq  # Tentacle PLC publishes MQTT messages to HiveMQ broker
+    networks:
+      - sim-network
+
+  tentacle-ui:
+    image: joyautomation/tentacle-ui:${TENTACLE_UI_VERSION:-v0.0.4}
+    container_name: tentacle-ui
+    ports:
+      - ${TENTACLE_UI_PORT:-3000}:3000
+    restart: always
+    environment:
+      - TENTACLE_HOST=tentacle-plc  # Use service name for container networking
+      - TENTACLE_PORT=4123
+      - TENTACLE_PROTOCOL=http
+      - TENTACLE_URL=/graphql
+    depends_on:
+      - tentacle-plc
+    networks:
+      - sim-network
+
+networks:
+  sim-network:
+    driver: bridge
