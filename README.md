@@ -260,11 +260,6 @@ src/
 │   └── controls.ts         # 6 control variables (2 inputs, 2 outputs, 2 setpoints)
 └── utils/
     └── scaling.ts          # Analog scaling utilities
-
-docs/
-├── stories/                # User stories and implementation tracking
-├── prd/                    # Product requirements (sharded)
-└── architecture/           # System architecture documentation
 ```
 
 ## Troubleshooting
