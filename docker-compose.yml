@@ -71,7 +71,7 @@ services:
       - sim-network
 
   tentacle-ui:
-    image: joyautomation/tentacle-ui:${TENTACLE_UI_VERSION:-v0.0.4}
+    image: joyautomation/tentacle-ui:${TENTACLE_UI_VERSION:-v0.0.7-amd64}
     container_name: tentacle-ui
     ports:
       - ${TENTACLE_UI_PORT:-3000}:3000
