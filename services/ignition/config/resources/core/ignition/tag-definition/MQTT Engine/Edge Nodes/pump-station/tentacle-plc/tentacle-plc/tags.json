@@ -1,0 +1,100 @@
+[
+  {
+    "usr": {
+      "dataType": "Boolean",
+      "description": "Normally closed stop button (true \u003d not pressed, false \u003d pressed)",
+      "source": "modbusRemoteIO"
+    },
+    "name": "localStop",
+    "tagType": "AtomicTag"
+  },
+  {
+    "usr": {
+      "dataType": "Float4",
+      "description": "Pump inlet pressure",
+      "source": "modbusRemoteIO"
+    },
+    "name": "suctionPressure",
+    "tagType": "AtomicTag"
+  },
+  {
+    "usr": {
+      "dataType": "Float4",
+      "description": "Pump outlet pressure",
+      "source": "modbusRemoteIO"
+    },
+    "name": "dischargePressure",
+    "tagType": "AtomicTag"
+  },
+  {
+    "usr": {
+      "dataType": "Float4",
+      "description": "Water flow rate",
+      "source": "modbusRemoteIO"
+    },
+    "name": "flowRate",
+    "tagType": "AtomicTag"
+  },
+  {
+    "usr": {
+      "dataType": "Boolean",
+      "description": "Internal pump running state (true \u003d running, false \u003d stopped)"
+    },
+    "name": "pumpEnabled",
+    "tagType": "AtomicTag"
+  },
+  {
+    "usr": {
+      "dataType": "Float4",
+      "description": "Motor winding temperature",
+      "source": "modbusRemoteIO"
+    },
+    "name": "motorTemperature",
+    "tagType": "AtomicTag"
+  },
+  {
+    "usr": {
+      "dataType": "Boolean",
+      "description": "Pump state output to simulator for pump-aware sensor behavior",
+      "source": "modbusRemoteIO"
+    },
+    "name": "pumpStateOutput",
+    "tagType": "AtomicTag"
+  },
+  {
+    "usr": {
+      "dataType": "Float4",
+      "description": "Motor temperature alarm threshold (°F) - configurable via SCADA"
+    },
+    "name": "temperatureSetpoint",
+    "tagType": "AtomicTag"
+  },
+  {
+    "usr": {
+      "dataType": "Boolean",
+      "description": "Normally open start button (false \u003d not pressed, true \u003d pressed)",
+      "source": "modbusRemoteIO"
+    },
+    "name": "localStart",
+    "tagType": "AtomicTag"
+  },
+  {
+    "usr": {
+      "dataType": "Float4",
+      "description": "Minimum suction pressure threshold (PSI) - configurable via SCADA"
+    },
+    "name": "pressureSetpoint",
+    "tagType": "AtomicTag"
+  },
+  {
+    "usr": {
+      "dataType": "String",
+      "host": "modbus-sim",
+      "description": "Modbus connection to pump station simulator",
+      "type": "modbus",
+      "error": null
+    },
+    "name": "source:modbusRemoteIO",
+    "tagType": "AtomicTag"
+  }
+]

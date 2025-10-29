@@ -1,0 +1,22 @@
+{
+  "cleanSession": true,
+  "enableLegacyStateMessages": false,
+  "enablePrimaryHostSubscriptions": false,
+  "hostnameVerification": true,
+  "includeSparkplugDataTypes": true,
+  "keepAlive": 30,
+  "legacyStateHostnameVerification": true,
+  "password": {
+    "data": {
+      "ciphertext": "_w4114sbSaKTbg",
+      "encrypted_key": "AY9-I2JLodtFg_3E-eGldZQpIUCWYdXzIds3qmcb7rBGWy6VMbDpRA",
+      "iv": "FnRBzfP3EN42LmwF",
+      "protected": "eyJhbGciOiJBMjU2S1ciLCJlbmMiOiJBMjU2R0NNIiwiaWF0IjoxNzYxNzIxNDA5LCJ6aXAiOiJERUYifQ",
+      "tag": "fUI9R0KxJzNtnyCYfEFEHw"
+    },
+    "type": "Embedded"
+  },
+  "serverSet": "Default Set",
+  "url": "tcp://localhost:1883",
+  "username": "admin"
+}

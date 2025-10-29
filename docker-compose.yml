@@ -8,9 +8,15 @@ services:
     ports:
       - ${SIMULATOR_UI_PORT:-8080}:8080
       - 5020:5020  # Modbus I/O server
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.modbus-sim.rule=Host(`modbus-sim.localtest.me`)"
+      - "traefik.http.routers.modbus-sim.entrypoints=websecure"
+      - "traefik.http.services.modbus-sim.loadbalancer.server.port=8080"
     restart: always
     networks:
-      - sim-network
+      - default
+      - proxy
 
   # HiveMQ MQTT broker for Sparkplug B communication
   hivemq:
@@ -20,10 +26,16 @@ services:
       - "1883:1883"  # MQTT protocol port
       - "8000:8000"  # WebSocket listener
       - "8081:8080"  # HiveMQ Control Center web UI
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.hivemq.rule=Host(`hivemq.localtest.me`)"
+      - "traefik.http.routers.hivemq.entrypoints=websecure"
+      - "traefik.http.services.hivemq.loadbalancer.server.port=8080"
     environment:
       - HIVEMQ_ALLOW_ANONYMOUS=true
     networks:
-      - sim-network
+      - default
+      - proxy
     restart: always
 
   tentacle-plc:
@@ -68,13 +80,18 @@ services:
       - modbus-sim
       - hivemq  # Tentacle PLC publishes MQTT messages to HiveMQ broker
     networks:
-      - sim-network
+      - default
 
   tentacle-ui:
     image: joyautomation/tentacle-ui:${TENTACLE_UI_VERSION:-v0.0.7-amd64}
     container_name: tentacle-ui
     ports:
       - ${TENTACLE_UI_PORT:-3000}:3000
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.tentacle-ui.rule=Host(`tentacle-ui.localtest.me`)"
+      - "traefik.http.routers.tentacle-ui.entrypoints=websecure"
+      - "traefik.http.services.tentacle-ui.loadbalancer.server.port=3000"
     restart: always
     environment:
       - TENTACLE_HOST=tentacle-plc  # Use service name for container networking
@@ -84,8 +101,134 @@ services:
     depends_on:
       - tentacle-plc
     networks:
-      - sim-network
+      - default
+      - proxy
+
+  # PostgreSQL Database for Ignition Historian and transaction storage
+  database:
+    image: postgres
+    container_name: postgres-db
+    hostname: postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_PASSWORD: P@ssword1!
+      POSTGRES_USER: postgres
+    volumes:
+      - ./services/postgres/init-sql:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: always
+    networks:
+      - default
+
+  # Liquibase for PostgreSQL schema migrations
+  liquibase:
+    image: liquibase/liquibase
+    container_name: liquibase
+    depends_on:
+      - database
+    volumes:
+      - ./services/postgres:/database
+      - ./services/postgres/postgresql.jar:/liquibase/lib/postgresql.jar
+      - ./scripts/wait-for-it.sh:/wait-for-it.sh
+    entrypoint: ["/wait-for-it.sh", "postgres:5432", "--", "liquibase", "--defaultsFile=/database/liquibase/liquibase.docker.properties", "update"]
+    networks:
+      - default
+
+  # Ignition Gateway 8.3 SCADA Platform
+  gateway:
+    image: inductiveautomation/ignition:8.3.1
+    container_name: ignition-gateway
+    ports:
+      - "8088:8088"  # Direct gateway access
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.ignition.rule=Host(`ignition83.localtest.me`)"
+      - "traefik.http.routers.ignition.entrypoints=websecure"
+      - "traefik.http.services.ignition.loadbalancer.server.port=8088"
+    environment:
+      IGNITION_EDITION: "standard"
+      DISABLE_QUICKSTART: "true"
+      ACCEPT_IGNITION_EULA: "Y"
+      GATEWAY_MODULES_ENABLED: |
+        com.inductiveautomation.eventstream,
+        com.inductiveautomation.historian,
+        com.inductiveautomation.perspective,
+        com.inductiveautomation.jdbc.postgresql,
+        com.inductiveautomation.webdev,
+        com.inductiveautomation.opcua,
+        com.cirruslink.mqtt.engine.gateway
+    volumes:
+      - ./services/ignition/config:/usr/local/bin/ignition/data/config
+      - ./services/ignition/projects:/usr/local/bin/ignition/data/projects
+      - ./shared/gateway-utilities/projects/gateway-utilities:/usr/local/bin/ignition/data/projects/gateway-utilities
+      - ./services/ignition/commissioning.json:/usr/local/bin/ignition/data/commissioning.json
+    command: >
+      -n ignition83
+      --
+      -Dignition.config.mode=local-dev
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8088/StatusPing"]
+      interval: 30s
+      timeout: 10s
+      start_period: 120s
+      retries: 3
+    restart: always
+    depends_on:
+      database:
+        condition: service_healthy
+      hivemq:
+        condition: service_started
+    networks:
+      - default
+      - proxy
+
+  # pgAdmin for database management
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com
+      PGADMIN_DEFAULT_PASSWORD: root
+    volumes:
+      - ./services/pgadmin/servers.json:/pgadmin4/servers.json
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.pgadmin.rule=Host(`postgres-pgadmin.localtest.me`)"
+      - "traefik.http.routers.pgadmin.entrypoints=websecure"
+      - "traefik.http.services.pgadmin.loadbalancer.server.port=80"
+    restart: always
+    networks:
+      - default
+      - proxy
+
+  # Traefik reverse proxy for subdomain routing
+  traefik:
+    image: traefik:latest
+    container_name: traefik
+    command:
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--entrypoints.websecure.http.tls=true"
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8090:8080"  # Traefik dashboard
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    restart: always
+    networks:
+      - proxy
 
 networks:
-  sim-network:
-    driver: bridge
+  default:
+  proxy:
+    external: true
+    name: proxy
